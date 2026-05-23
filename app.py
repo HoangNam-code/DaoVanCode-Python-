@@ -1,10 +1,13 @@
 import streamlit as st
 import matplotlib.pyplot as plt
+import sys
+import os
 from utils.highlighter import highlight_code
 
-# Import code của Thành viên 1 và 2 (Bỏ comment khi đã có code thực tế)
-# from utils.member1_cleaner import clean_code
-# from utils.member2_logic import calculate_plagiarism
+# Thêm thư mục gốc vào đường dẫn hệ thống để fix lỗi ModuleNotFoundError
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from src.preprocess_code import lam_sach_code
+from src.jaccard_baseline import jaccard_similarity
 
 # -- CẤU HÌNH TRANG WEB --
 st.set_page_config(page_title="Hệ Thống Phát Hiện Đạo Văn", layout="wide")
@@ -31,20 +34,28 @@ if st.button("🚀 Xử lý & Kiểm tra đạo văn"):
             # KHU VỰC TÍCH HỢP CODE THÀNH VIÊN 1 & 2
             # ==========================================
             
-            # 1. Gọi code Thành viên 1 (Làm sạch)
-            # cleaned1 = clean_code(text1)
-            # cleaned2 = clean_code(text2)
+            # 1. Gọi logic làm sạch code (Xóa comment, chuẩn hóa khoảng trắng)
+            cleaned1 = lam_sach_code(text1)
+            cleaned2 = lam_sach_code(text2)
             
-            # 2. Gọi code Thành viên 2 (Tính %)
-            # percent, matched_snippets = calculate_plagiarism(cleaned1, cleaned2)
+            # 2. Tính phần trăm đạo văn thực tế bằng thuật toán Jaccard
+            similarity_score = jaccard_similarity(cleaned1, cleaned2)
+            percent = round(similarity_score * 100, 2)
             
-            # --- DỮ LIỆU GIẢ LẬP ĐỂ TEST GIAO DIỆN CHẠY TRƯỚC ---
-            percent = 45.0  # Giả lập tỷ lệ
-            matched_snippets = [
-                "int calculateSum(int a, int b) {", 
-                "return a + b;",
-                "}"
-            ] # Giả lập 2 dòng code bị Thành viên 2 bắt lỗi giống nhau
+            # 3. Trích xuất các đoạn code giống nhau để bôi màu đối soát
+            # Tách nội dung thành từng dòng
+            original_lines1 = text1.split('\n')
+            original_lines2 = text2.split('\n')
+            
+            # Dùng dictionary để map từ dòng đã xóa khoảng trắng thừa -> dòng gốc nguyên bản
+            dict_lines1 = {line.strip(): line for line in original_lines1 if len(line.strip()) > 10}
+            dict_lines2 = {line.strip(): line for line in original_lines2 if len(line.strip()) > 10}
+            
+            # Lấy các dòng code trùng lặp (Intersection)
+            common_stripped_lines = set(dict_lines1.keys()).intersection(set(dict_lines2.keys()))
+            
+            # Lấy lại định dạng dòng gốc để highlighter có thể nhận diện và bôi màu chính xác
+            matched_snippets = [dict_lines1[line] for line in common_stripped_lines]
             # ==========================================
             
         # -- HIỂN THỊ KẾT QUẢ TỶ LỆ (%) --
